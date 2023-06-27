@@ -3,6 +3,10 @@ package com.example.praktika;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -18,7 +22,10 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+
 
 public class activity_chart extends AppCompatActivity {
 
@@ -28,12 +35,15 @@ public class activity_chart extends AppCompatActivity {
 
     private List<DataPoint> dataPoints; // Список данных для графика
 
+    private Spinner spinnerSort;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chart);
 
         lineChart = findViewById(R.id.chart);
+        spinnerSort = findViewById(R.id.spinnerSort);
 
         // Если есть сохраненные данные, используйте их, иначе создайте новые
         if (savedInstanceState != null && savedInstanceState.containsKey("dataPoints")) {
@@ -48,6 +58,24 @@ public class activity_chart extends AppCompatActivity {
         XAxis xAxis = lineChart.getXAxis();
         YAxis yAxis = lineChart.getAxisLeft();
         yAxis.setAxisMinimum(0f);
+
+        // Настройка адаптера для спиннера
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.sort_options, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerSort.setAdapter(adapter);
+
+        // Установка слушателя для сортировки при выборе элемента из спиннера
+        spinnerSort.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                sortData(position);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Ничего не делать
+            }
+        });
     }
 
     @Override
@@ -116,5 +144,44 @@ public class activity_chart extends AppCompatActivity {
             entries.add(entry);
         }
         return entries;
+    }
+
+    private void sortData(int position) {
+        if (dataPoints == null) {
+            return; // Проверка на null для избежания ошибки NullPointerException
+        }
+
+        switch (position) {
+            case 0: // Сортировка по материалу
+                Collections.sort(dataPoints, new Comparator<DataPoint>() {
+                    @Override
+                    public int compare(DataPoint dp1, DataPoint dp2) {
+                        return dp1.getMaterial().compareTo(dp2.getMaterial());
+                    }
+                });
+                break;
+            case 1: // Сортировка по количеству израсходованного материала
+                Collections.sort(dataPoints, new Comparator<DataPoint>() {
+                    @Override
+                    public int compare(DataPoint dp1, DataPoint dp2) {
+                        float usage1 = Float.parseFloat(dp1.getMaterialUsage());
+                        float usage2 = Float.parseFloat(dp2.getMaterialUsage());
+                        return Float.compare(usage1, usage2);
+                    }
+                });
+                break;
+            case 2: // Сортировка по количеству израсходованной энергии
+                Collections.sort(dataPoints, new Comparator<DataPoint>() {
+                    @Override
+                    public int compare(DataPoint dp1, DataPoint dp2) {
+                        float energy1 = Float.parseFloat(dp1.getEnergyUsage());
+                        float energy2 = Float.parseFloat(dp2.getEnergyUsage());
+                        return Float.compare(energy1, energy2);
+                    }
+                });
+                break;
+        }
+
+        updateChart();
     }
 }
