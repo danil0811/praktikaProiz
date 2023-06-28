@@ -2,6 +2,7 @@ package com.example.praktika;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -14,7 +15,7 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -25,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-
 
 public class activity_chart extends AppCompatActivity {
 
@@ -68,7 +68,9 @@ public class activity_chart extends AppCompatActivity {
         spinnerSort.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                sortData(position);
+                if (dataPoints != null) {
+                    sortData(position);
+                }
             }
 
             @Override
@@ -96,87 +98,82 @@ public class activity_chart extends AppCompatActivity {
             public void onDataChange(DataSnapshot dataSnapshot) {
                 dataPoints = new ArrayList<>();
 
+                // Прочитайте данные и добавьте их в список
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                    // Прочитайте значения из снимка данных и создайте объект DataPoint
-                    String material = snapshot.child("material").getValue(String.class);
-                    String materialUsage = snapshot.child("materialUsage").getValue(String.class);
-                    String energyUsage = snapshot.child("energyUsage").getValue(String.class);
-                    DataPoint dataPoint = new DataPoint(material, materialUsage, energyUsage);
-
-                    // Добавьте DataPoint в список dataPoints
+                    DataPoint dataPoint = snapshot.getValue(DataPoint.class);
                     dataPoints.add(dataPoint);
                 }
 
-                // После чтения данных, обновите график
+                // Обновление графика после чтения данных
                 updateChart();
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
-                // Обработка ошибок чтения данных из Firebase
+                // Обработка ошибок чтения данных
             }
         });
     }
 
     private void updateChart() {
-        // Преобразование данных в формат Entry
-        List<Entry> entries = convertDataToEntries(dataPoints);
+        List<Entry> entries = new ArrayList<>();
 
-        // Создание набора данных для графика
-        dataSet = new LineDataSet(entries, "Data");
+        // Добавление точек на график
+        for (int i = 0; i < dataPoints.size(); i++) {
+            DataPoint dataPoint = dataPoints.get(i);
+            float x = i;
+            float y = Float.parseFloat(dataPoint.getEnergyUsage());
+            entries.add(new Entry(x, y));
+        }
+
+        dataSet = new LineDataSet(entries, "Energy Usage");
+
+        // Настройка стиля линии
         dataSet.setLineWidth(2f);
-        dataSet.setCircleRadius(4f);
-        dataSet.setColor(getResources().getColor(R.color.lineColor));
-        dataSet.setCircleColor(getResources().getColor(R.color.circleColor));
+        dataSet.setColor(Color.BLUE);
+        dataSet.setCircleColor(Color.RED);
+        dataSet.setCircleRadius(5f);
+        dataSet.setDrawCircleHole(false);
 
-        // Создание объекта LineData
         lineData = new LineData(dataSet);
 
-        // Установка данных на график
+        // Настройка форматтера для оси X
+        List<String> xAxisValues = new ArrayList<>();
+        for (DataPoint dataPoint : dataPoints) {
+            xAxisValues.add(dataPoint.getMaterial());
+        }
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xAxisValues));
+
         lineChart.setData(lineData);
         lineChart.invalidate(); // Обновление графика
     }
 
-    private List<Entry> convertDataToEntries(List<DataPoint> dataPoints) {
-        List<Entry> entries = new ArrayList<>();
-        for (DataPoint dataPoint : dataPoints) {
-            Entry entry = new Entry(Float.parseFloat(dataPoint.getMaterialUsage()), Float.parseFloat(dataPoint.getEnergyUsage()));
-            entries.add(entry);
-        }
-        return entries;
-    }
-
     private void sortData(int position) {
-        if (dataPoints == null) {
-            return; // Проверка на null для избежания ошибки NullPointerException
-        }
-
         switch (position) {
             case 0: // Сортировка по материалу
                 Collections.sort(dataPoints, new Comparator<DataPoint>() {
                     @Override
-                    public int compare(DataPoint dp1, DataPoint dp2) {
-                        return dp1.getMaterial().compareTo(dp2.getMaterial());
+                    public int compare(DataPoint o1, DataPoint o2) {
+                        return o1.getMaterial().compareTo(o2.getMaterial());
                     }
                 });
                 break;
-            case 1: // Сортировка по количеству израсходованного материала
+            case 1: // Сортировка по использованию материала
                 Collections.sort(dataPoints, new Comparator<DataPoint>() {
                     @Override
-                    public int compare(DataPoint dp1, DataPoint dp2) {
-                        float usage1 = Float.parseFloat(dp1.getMaterialUsage());
-                        float usage2 = Float.parseFloat(dp2.getMaterialUsage());
-                        return Float.compare(usage1, usage2);
+                    public int compare(DataPoint o1, DataPoint o2) {
+                        return o1.getMaterialUsage().compareTo(o2.getMaterialUsage());
                     }
                 });
                 break;
-            case 2: // Сортировка по количеству израсходованной энергии
+            case 2: // Сортировка по использованию энергии
                 Collections.sort(dataPoints, new Comparator<DataPoint>() {
                     @Override
-                    public int compare(DataPoint dp1, DataPoint dp2) {
-                        float energy1 = Float.parseFloat(dp1.getEnergyUsage());
-                        float energy2 = Float.parseFloat(dp2.getEnergyUsage());
-                        return Float.compare(energy1, energy2);
+                    public int compare(DataPoint o1, DataPoint o2) {
+                        float energyUsage1 = Float.parseFloat(o1.getEnergyUsage());
+                        float energyUsage2 = Float.parseFloat(o2.getEnergyUsage());
+                        return Float.compare(energyUsage1, energyUsage2);
                     }
                 });
                 break;
