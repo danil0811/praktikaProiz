@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">praktika</string>
+    <string name="material_prompt">Материал</string>
 </resources>
